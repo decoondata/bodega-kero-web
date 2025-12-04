@@ -303,7 +303,7 @@ export default function App() {
       return "Claro que sí, revisa nuestro stock o pregúntame por algo específico.";
     };
 
-    const handleSend = async (e) => {
+    const handleSend = async (e: React.FormEvent) => {
       e.preventDefault();
       if (!input.trim() || thinking) return;
       
