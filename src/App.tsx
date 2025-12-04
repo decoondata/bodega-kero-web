@@ -293,7 +293,7 @@ export default function App() {
     }, [msgs, isOpen]);
 
     // Función de respaldo: Si la IA falla, responde esto
-    const responderSimulado = (texto) => {
+    const responderSimulado = (texto: string) => {
       const t = texto.toLowerCase();
       if (t.includes("hola") || t.includes("buenas")) return "¡Habla caserito! Bienvenido a la bodega.";
       if (t.includes("precio") || t.includes("cuanto")) return "Los precios están baratísimos, revisa el catálogo arriba mano.";
