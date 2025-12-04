@@ -277,6 +277,7 @@ export default function App() {
   // --- Vistas ---
 
   // --- COMPONENTE 1: CHATBOT GEMINI ---
+  // --- COMPONENTE 1: CHATBOT GEMINI (CON RESPALDO INTELIGENTE) ---
   const AIChat = () => {
     const [isOpen, setIsOpen] = useState(false);
     const [msgs, setMsgs] = useState([
@@ -284,61 +285,67 @@ export default function App() {
     ]);
     const [input, setInput] = useState("");
     const [thinking, setThinking] = useState(false);
+    const endRef = useRef(null);
 
-    const handleSend = async (e: React.FormEvent) => {
+    // Auto-scroll al final del chat
+    useEffect(() => {
+      endRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, [msgs, isOpen]);
+
+    // Función de respaldo: Si la IA falla, responde esto
+    const responderSimulado = (texto) => {
+      const t = texto.toLowerCase();
+      if (t.includes("hola") || t.includes("buenas")) return "¡Habla caserito! Bienvenido a la bodega.";
+      if (t.includes("precio") || t.includes("cuanto")) return "Los precios están baratísimos, revisa el catálogo arriba mano.";
+      if (t.includes("yape") || t.includes("plin")) return "Sí aceptamos Yape y Plin. El número es 954 305 131.";
+      if (t.includes("gracias")) return "A ti, ¡vuelve pronto!";
+      if (t.includes("chela") || t.includes("cerveza") || t.includes("tomar")) return "Tenemos las heladitas. Revisa la sección de Licores.";
+      return "Claro que sí, revisa nuestro stock o pregúntame por algo específico.";
+    };
+
+    const handleSend = async (e) => {
       e.preventDefault();
       if (!input.trim() || thinking) return;
+      
       const userText = input;
       setMsgs((prev) => [...prev, { role: "user", text: userText }]);
       setInput("");
       setThinking(true);
 
-      if (!GEMINI_API_KEY) {
-        setMsgs((prev) => [
-          ...prev,
-          {
-            role: "model",
-            text: "El admin no ha configurado mi API Key aún 😅",
-          },
-        ]);
-        setThinking(false);
-        return;
-      }
-
+      // Intento 1: Usar la IA Real
       try {
-        const context = `Eres el asistente de "Bodega Kero" en Huancayo. Inventario: ${products
-          .map((p) => p.name)
-          .join(
-            ", "
-          )}. Recomienda productos. Sé amable y usa jerga peruana suave.`;
+        const inventory = products.map((p) => `${p.name} (S/ ${p.price})`).join(", ");
+        const context = `Eres el asistente de "Bodega Kero" en Huancayo. Inventario actual: ${inventory}. Responde amable, corto y con jerga peruana respetuosa. Usuario: ${userText}`;
+
         const res = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              contents: [
-                { parts: [{ text: context + "\nUsuario: " + userText }] },
-              ],
+              contents: [{ parts: [{ text: context }] }],
             }),
           }
         );
+
         const data = await res.json();
-        setMsgs((prev) => [
-          ...prev,
-          {
-            role: "model",
-            text:
-              data.candidates?.[0]?.content?.parts?.[0]?.text ||
-              "No entendí, mano.",
-          },
-        ]);
+
+        // Si Google nos da error, lanzamos una excepción para ir al respaldo
+        if (data.error) throw new Error("Error de API Google");
+
+        const reply = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!reply) throw new Error("Respuesta vacía");
+
+        setMsgs((prev) => [...prev, { role: "model", text: reply }]);
+
       } catch (err) {
-        setMsgs((prev) => [
-          ...prev,
-          { role: "model", text: "Error de conexión." },
-        ]);
+        console.error("Fallo la IA, usando respaldo:", err);
+        // Intento 2: Usar Respaldo Simulado (Para que el usuario no note el error)
+        setTimeout(() => {
+           setMsgs((prev) => [...prev, { role: "model", text: responderSimulado(userText) }]);
+        }, 500); // Pequeña pausa para naturalidad
       }
+      
       setThinking(false);
     };
 
@@ -381,6 +388,7 @@ export default function App() {
               Escribiendo...
             </div>
           )}
+          <div ref={endRef} />
         </div>
         <form onSubmit={handleSend} className="p-2 border-t flex gap-2">
           <input
