@@ -21,7 +21,6 @@ import {
   Loader2,
   Calendar,
   Save,
-  F,
   MessageSquare, // <--- Nuevo
   Send, // <--- Nuevo
   X,
@@ -1385,7 +1384,7 @@ export default function App() {
       </div>
     </nav>
   );
-
+  
   const StoreView = () => {
     const categories: Category[] = [
       "Todos",
