@@ -285,7 +285,7 @@ export default function App() {
     ]);
     const [input, setInput] = useState("");
     const [thinking, setThinking] = useState(false);
-    const endRef = useRef(null);
+    const endRef = useRef<HTMLDivElement>(null);
 
     // Auto-scroll al final del chat
     useEffect(() => {
