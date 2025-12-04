@@ -5,24 +5,24 @@ import {
   Trash2,
   Plus,
   Smartphone,
-  Settings,
+  // Settings,
   LogOut,
   Edit,
   Package,
   ArrowLeft,
   CheckCircle,
-  QrCode,
+  // QrCode,
   Sparkles,
   User,
   Lock,
   Mail,
   Upload,
-  Image as ImageIcon,
+  // Image as ImageIcon,
   Loader2,
   Calendar,
   Save,
-  MessageSquare, // <--- Nuevo
-  Send, // <--- Nuevo
+  // MessageSquare,
+  Send,
   X,
 } from "lucide-react";
 
@@ -109,6 +109,11 @@ const ADMIN_PASS = "adminkero1";
 
 // --- CONFIGURACIÓN GEMINI ---
 const GEMINI_API_KEY = "AIzaSyD4guNCXnnb0CQKuio_TZgVpql5uNIvpIY"; // <--- ¡PEGA TU API KEY AQUÍ DENTRO!
+
+// --- DECLARACIÓN DE VARIABLES GLOBALES ---
+// Esto soluciona los errores: Cannot find name '__app_id' y '__initial_auth_token'
+declare const __app_id: string | undefined;
+declare const __initial_auth_token: string | undefined;
 
 export default function App() {
   // --- Estados de Datos (desde Firebase) ---
@@ -280,7 +285,7 @@ export default function App() {
     const [input, setInput] = useState("");
     const [thinking, setThinking] = useState(false);
 
-    const handleSend = async (e) => {
+    const handleSend = async (e: React.FormEvent) => {
       e.preventDefault();
       if (!input.trim() || thinking) return;
       const userText = input;
@@ -619,11 +624,19 @@ export default function App() {
 
   const AdminPanel = () => {
     const [tab, setTab] = useState("products"); // "products" | "orders"
+
+    // SOLUCIÓN ERRORES DE FORM DATA: Inicializamos con TODAS las propiedades
     const [formData, setFormData] = useState({
-      category: "Bebidas",
+      name: "",
+      price: 0,
+      stock: 0,
+      category: "Bebidas" as Category, // Forzamos el tipo Category
       image: "",
+      description: "",
     });
-    const [isEditing, setIsEditing] = useState(null);
+
+    // SOLUCIÓN ERROR setIsEditing: Definimos que puede ser string o null
+    const [isEditing, setIsEditing] = useState<string | null>(null);
     const [uploading, setUploading] = useState(false);
 
     // --- NUEVOS ESTADOS PARA VENTA MANUAL ---
@@ -635,8 +648,8 @@ export default function App() {
       total: "",
     });
 
-    // Manejar Subida de Imagen
-    const handleImageUpload = (e) => {
+    // SOLUCIÓN ERROR handleImageUpload: Tipo explícito para el evento de input file
+    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (file) {
         if (file.size > 500000) {
@@ -648,22 +661,24 @@ export default function App() {
         setUploading(true);
         const reader = new FileReader();
         reader.onloadend = () => {
-          setFormData({ ...formData, image: reader.result });
+          setFormData({ ...formData, image: reader.result as string });
           setUploading(false);
         };
         reader.readAsDataURL(file);
       }
     };
 
-    const handleSubmit = async (e) => {
+    const handleSubmit = async (e: React.FormEvent) => {
+      // <--- AQUÍ SÍ VA
       e.preventDefault();
       if (!firebaseUser) return;
 
+      // Aquí formData SÍ tiene category, price, etc. porque es el estado del Admin
       const productData = {
         name: formData.name || "Producto sin nombre",
         price: Number(formData.price),
         stock: Number(formData.stock),
-        category: formData.category || "Abarrotes",
+        category: formData.category,
         image:
           formData.image || "https://via.placeholder.com/300?text=Sin+Imagen",
         description: formData.description || "",
@@ -671,6 +686,7 @@ export default function App() {
 
       try {
         if (isEditing) {
+          // ... lógica de editar
           const docRef = doc(
             db,
             "artifacts",
@@ -683,12 +699,21 @@ export default function App() {
           await updateDoc(docRef, productData);
           setIsEditing(null);
         } else {
+          // ... lógica de crear nuevo
           await addDoc(
             collection(db, "artifacts", appId, "public", "data", "products"),
             productData
           );
         }
-        setFormData({ category: "Bebidas", image: "" });
+        // Limpiamos el formulario correctamente
+        setFormData({
+          name: "",
+          price: 0,
+          stock: 0,
+          category: "Bebidas",
+          image: "",
+          description: "",
+        });
       } catch (err) {
         alert("Error al guardar producto");
         console.error(err);
@@ -696,7 +721,7 @@ export default function App() {
     };
 
     // --- NUEVA FUNCIÓN: GUARDAR VENTA PASADA ---
-    const handleManualOrderSubmit = async (e) => {
+    const handleManualOrderSubmit = async (e: React.FormEvent) => {
       e.preventDefault();
       if (!manualOrder.date || !manualOrder.total)
         return alert("Fecha y Total requeridos");
@@ -735,7 +760,7 @@ export default function App() {
     };
 
     // --- NUEVA FUNCIÓN: CAMBIAR ESTADO DE PEDIDO ---
-    const toggleOrderStatus = async (order) => {
+    const toggleOrderStatus = async (order: Order) => {
       const newStatus = order.status === "pending" ? "completed" : "pending";
       try {
         await updateDoc(
@@ -747,7 +772,7 @@ export default function App() {
       }
     };
 
-    const handleDelete = async (id) => {
+    const handleDelete = async (id: string) => {
       if (confirm("¿Borrar este producto?")) {
         await deleteDoc(
           doc(db, "artifacts", appId, "public", "data", "products", id)
@@ -867,7 +892,10 @@ export default function App() {
                   <select
                     value={formData.category}
                     onChange={(e) =>
-                      setFormData({ ...formData, category: e.target.value })
+                      setFormData({
+                        ...formData,
+                        category: e.target.value as Category,
+                      })
                     }
                     className="w-full p-2 border rounded-lg bg-white"
                   >
@@ -927,7 +955,14 @@ export default function App() {
                       type="button"
                       onClick={() => {
                         setIsEditing(null);
-                        setFormData({ category: "Bebidas", image: "" });
+                        setFormData({
+                          name: "",
+                          price: 0,
+                          stock: 0,
+                          category: "Bebidas",
+                          image: "",
+                          description: "",
+                        });
                       }}
                       className="flex-1 bg-slate-100 py-2 rounded-lg font-bold text-slate-600"
                     >
@@ -1384,7 +1419,7 @@ export default function App() {
       </div>
     </nav>
   );
-  
+
   const StoreView = () => {
     const categories: Category[] = [
       "Todos",
